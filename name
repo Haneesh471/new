@@ -1,0 +1,71 @@
+import google.generativeai as genai
+from docx import Document
+import PyPDF3
+
+generation_config = {
+  "temperature": 0,
+  "top_p": 1,
+  "top_k": 1,
+  "max_output_tokens": 8024,
+}
+
+def get_data_from_pdf(pdf_path):
+    file = open(pdf_path, "rb")
+    reader = PyPDF3.PdfFileReader(file)
+    nop = reader.numPages
+    data = ""
+    for i in range(0, nop):
+        page = reader.getPage(i)
+        pdfData = page.extractText()
+        data = data + pdfData + "\n"
+    return data
+
+def get_data_from_word(docx_path):
+    doc_object = open(docx_path, "rb")
+    doc_reader = Document(doc_object)
+    data = ""
+    for p in doc_reader.paragraphs:
+        data += p.text + "\n"
+    return data
+
+genai.configure(api_key="AIzaSyC-w9Z7a6pHnlCUx1wqsU3ApsxtAoZRxkw")
+model = genai.GenerativeModel("models/gemini-1.0-pro", generation_config=generation_config)
+
+def get_gemini_response(prompt, input1, input2):
+    response = model.generate_content([prompt, input1, input2])
+    return response.text
+
+def compare_documents(input_prompt, data1, data2):
+    gemini_response = get_gemini_response(input_prompt, data1, data2)
+    matching_clauses = gemini_response.split('\n')
+   
+    clauses_data1 = data1.split('\n')
+    clauses_data2 = data2.split('\n')
+   
+    matched_indices_data1 = []
+    matched_indices_data2 = []
+   
+    for clause in matching_clauses:
+        if clause in clauses_data1:
+            matched_indices_data1.append(clauses_data1.index(clause))
+        if clause in clauses_data2:
+            matched_indices_data2.append(clauses_data2.index(clause))
+   
+    percentage_matched_data1 = (len(matched_indices_data1) / len(clauses_data1)) * 100
+    percentage_matched_data2 = (len(matched_indices_data2) / len(clauses_data2)) * 100
+   
+    return matching_clauses, percentage_matched_data1, percentage_matched_data2
+
+pdf_data = get_data_from_pdf("coabg.pdf")
+docx_data = get_data_from_word("Advance Payment Guarantee_on Demand.docx")
+input_prompt = "I am working in text vetting automation where I need to compare the clauses present in both the text. The first data which I will be providing to you will be the bank guarantee data where the bank's clauses will be present and the second one will the applicant data. you need to compare both the documents based on numbers of clauses from applicant data is matching which bank data and based on that give me the number of clauses matched and also the applicant's clauses which are being matched with the bank's data"
+
+matching_clauses, percentage_matched_data1, percentage_matched_data2 = compare_documents(input_prompt, pdf_data, docx_data)
+
+print("Matching Clauses:")
+for clause in matching_clauses:
+    print(clause)
+print(f"Percentage of Matching Clauses in PDF: {percentage_matched_data1:.2f}%")
+print(f"Percentage of Matching Clauses in Docx: {percentage_matched_data2:.2f}%")
+
+Output: 
